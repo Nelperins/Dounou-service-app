@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dounou Service - Application Étudiant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dounou: {
+                            brown: '#34190A',
+                            cream: '#F5EBD0',
+                            orange: '#D97706',
+                            green: '#4F6B1E',
+                            lightBrown: '#7A5233',
+                            lightGreen: '#8FA85C',
+                            lightOrange: '#F0A64D',
+                            anthracite: '#282420'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-dounou-cream/40 text-dounou-anthracite font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- En-tête / Navigation -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <!-- Logo Dounou SVG -->
+                <svg class="w-12 h-12 flex-shrink-0" viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M100 25C75 25 55 45 55 70C55 75 58 78 62 78H138C142 78 145 75 145 70C145 45 125 25 100 25Z" fill="#34190A"/>
+                    <path d="M96 15C96 10 100 8 104 12C108 16 108 22 104 26C100 30 96 24 96 15Z" fill="#34190A"/>
+                    <rect x="45" y="75" width="110" height="8" rx="4" fill="#34190A"/>
+                    <path d="M125 55C140 50 155 60 150 72C145 84 130 75 125 55Z" fill="#4F6B1E"/>
+                    <path d="M140 45C155 42 165 55 158 65C151 75 138 65 140 45Z" fill="#8FA85C"/>
+                    <text x="18" y="115" font-family="Poppins" font-weight="900" font-size="42" fill="#34190A">Doun</text>
+                    <circle cx="132" cy="98" r="16" fill="#34190A"/>
+                    <circle cx="164" cy="102" r="12" fill="#34190A"/>
+                    <path d="M45 140C80 158 130 158 165 140" stroke="#D97706" stroke-width="6" stroke-linecap="round"/>
+                    <circle cx="60" cy="152" r="4" fill="#D97706"/>
+                    <circle cx="150" cy="152" r="4" fill="#D97706"/>
+                    <text x="75" y="156" font-family="Poppins" font-weight="700" font-size="16" fill="#4F6B1E" letter-spacing="2">MANGE !</text>
+                </svg>
+                <div>
+                    <h1 id="brand-title" class="font-bold text-lg text-dounou-brown leading-tight">Dounou Service</h1>
+                    <p class="text-xs font-medium flex items-center gap-1" id="service-status">
+                        <span class="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></span> Chargement...
+                    </p>
+                    <p id="service-hours-label" class="text-[10px] text-gray-500 font-semibold"></p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 md:space-x-3">
+                <button onclick="openSupportModal()" class="bg-gray-100 hover:bg-gray-200 p-2.5 rounded-xl text-gray-700 transition" title="Support & Contacts">
+                    <i class="fa-solid fa-headset text-lg"></i>
+                </button>
+                <button onclick="openCartModal()" class="relative bg-gray-100 hover:bg-gray-200 p-2.5 rounded-xl text-gray-700 transition">
+                    <i class="fa-solid fa-bag-shopping text-lg"></i>
+                    <span id="cart-badge" class="absolute -top-1 -right-1 bg-dounou-orange text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold hidden">0</span>
+                </button>
+                <div id="user-profile-menu" class="flex items-center gap-2">
+                    <button onclick="openAuthModal()" class="bg-dounou-orange hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">Connexion</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+        
+        <!-- Recherche et zone de livraison -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2 relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400"></i>
+                <input type="text" id="search-input" oninput="filterMenu()" placeholder="Rechercher un plat, une catégorie..." class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-dounou-orange transition shadow-sm">
+            </div>
+            <div class="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3 truncate">
+                    <i class="fa-solid fa-location-dot text-dounou-orange text-lg flex-shrink-0"></i>
+                    <div class="truncate">
+                        <p class="text-xs text-gray-400 font-medium">Zone & Adresse de livraison</p>
+                        <p id="current-location-label" class="text-sm font-semibold text-gray-700 truncate">Définir votre zone</p>
+                    </div>
+                </div>
+                <button onclick="openAddressModal()" class="text-xs text-dounou-orange font-bold hover:underline flex-shrink-0 ml-2">Définir</button>
+            </div>
+        </div>
+
+        <!-- Bannière -->
+        <div class="bg-gradient-to-r from-dounou-orange to-amber-600 rounded-3xl p-6 text-white shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="space-y-2 text-center md:text-left">
+                <span id="promo-banner-tag" class="bg-white/20 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">Offre Exclusive</span>
+                <h2 class="text-2xl font-black">Plats sur-mesure & Programme de Fidélité</h2>
+                <p class="text-amber-100 text-sm max-w-xl">Commandez vos repas favoris, cumulez des points et suivez vos plats sur-mesure validés par l'administration.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <button onclick="openLoyaltyModal()" class="bg-white/10 hover:bg-white/20 border border-white/30 font-bold px-5 py-3 rounded-2xl shadow transition text-sm whitespace-nowrap">
+                    <i class="fa-solid fa-gift mr-2"></i> Mes Points
+                </button>
+                <button onclick="openCustomRequestModal()" class="bg-white text-dounou-orange hover:bg-orange-50 font-bold px-6 py-3 rounded-2xl shadow transition whitespace-nowrap text-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Sur-Mesure
+                </button>
+            </div>
+        </div>
+
+        <!-- Catégories -->
+        <div>
+            <h3 class="font-bold text-lg mb-3 text-dounou-brown">Catégories de repas</h3>
+            <div id="categories-container" class="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+                <button onclick="selectCategory('all')" class="category-btn active px-5 py-2.5 rounded-2xl font-semibold text-sm bg-dounou-orange text-white shadow transition whitespace-nowrap">Tous les plats</button>
+            </div>
+        </div>
+
+        <!-- Catalogue Plats -->
+        <div>
+            <h3 class="font-bold text-lg mb-3 text-dounou-brown">Nos Plats Disponibles & Recommandations</h3>
+            <div id="menu-items-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="col-span-full text-center py-12 text-gray-400">Chargement du menu...</div>
+            </div>
+        </div>
+
+        <!-- Suivi Commandes & Sur-mesure -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-dounou-brown">Suivi Commandes Standards</h3>
+                    <button onclick="loadMyOrders()" class="text-xs text-dounou-orange font-bold hover:underline">Actualiser</button>
+                </div>
+                <div id="my-orders-container" class="space-y-4">
+                    <p class="text-sm text-gray-400">Connectez-vous pour suivre vos commandes.</p>
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-lg text-dounou-brown">Retours & Suivi Plats Sur-Mesure</h3>
+                    <button onclick="loadMyCustomRequests()" class="text-xs text-dounou-orange font-bold hover:underline">Actualiser</button>
+                </div>
+                <div id="my-custom-requests-container" class="space-y-4">
+                    <p class="text-sm text-gray-400">Connectez-vous pour voir les retours et tarifs de l'admin.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modale Panier -->
+    <div id="cart-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex justify-end">
+        <div class="bg-white w-full max-w-md h-full shadow-2xl flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="font-bold text-lg text-dounou-brown">Mon Panier</h2>
+                <button onclick="closeCartModal()" class="text-gray-400 hover:text-gray-600 p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="cart-items-list" class="flex-grow overflow-y-auto p-4 space-y-4 divide-y"></div>
+            <div class="p-4 border-t bg-gray-50 space-y-3">
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between text-gray-500"><span>Sous-total</span><span id="cart-subtotal">0 FCFA</span></div>
+                    <div class="flex justify-between text-gray-500"><span>Frais de livraison</span><span id="cart-delivery-fee">500 FCFA</span></div>
+                    <div class="flex justify-between text-dounou-orange text-xs font-semibold" id="promo-discount-row"></div>
+                    <div class="flex justify-between font-bold text-base text-dounou-brown pt-2 border-t"><span>Total</span><span id="cart-total">0 FCFA</span></div>
+                </div>
+                <div class="space-y-2">
+                    <input type="text" id="promo-code-input" placeholder="Code promo" class="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm uppercase">
+                    <button onclick="applyPromoCode()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 rounded-xl text-xs transition">Appliquer le code promo</button>
+                    
+                    <label class="block text-xs font-semibold text-gray-600 pt-1">Option de Paiement</label>
+                    <select id="payment-timing-option" onchange="togglePaymentFields()" class="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-dounou-orange">
+                        <option value="now">Payer maintenant (Mobile Money)</option>
+                        <option value="delivery">Payer à la livraison</option>
+                    </select>
+
+                    <div id="mobile-money-fields" class="space-y-2 pt-1">
+                        <select id="payment-method" class="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm">
+                            <option value="MTN Mobile Money">MTN Mobile Money</option>
+                            <option value="Moov Money">Moov Money</option>
+                            <option value="Celtiis Cash">Celtiis Cash</option>
+                        </select>
+                        <input type="text" id="transaction-id-input" placeholder="ID de transaction Mobile Money" class="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm font-mono">
+                    </div>
+                </div>
+                <button id="checkout-btn" onclick="checkoutOrder()" class="w-full bg-dounou-orange hover:bg-amber-700 text-white font-bold py-3 rounded-2xl shadow transition">Valider et Passer la Commande</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Adresse -->
+    <div id="address-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg text-dounou-brown">Définir votre zone & adresse</h3>
+                <button onclick="closeAddressModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Zone de livraison (définie par l'admin) *</label>
+                    <select id="delivery-zone-select" class="w-full p-3 border rounded-xl text-sm bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Précisions de l'adresse *</label>
+                    <input type="text" id="custom-address-text-input" placeholder="Ex: Quartier Agla, près du pavé..." class="w-full p-3 border rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Instructions pour le livreur</label>
+                    <textarea id="address-instructions" placeholder="Ex: Bâtiment rouge..." class="w-full p-3 border rounded-xl text-sm h-20"></textarea>
+                </div>
+                <button onclick="saveDeliveryAddress()" class="w-full bg-dounou-orange text-white font-bold py-3 rounded-2xl text-sm shadow">Enregistrer l'adresse</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Sur-Mesure -->
+    <div id="custom-request-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="font-bold text-lg text-dounou-brown">Commander un Plat Personnalisé</h2>
+                <button onclick="closeCustomRequestModal()" class="text-gray-400 hover:text-gray-600 p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nom du plat souhaité *</label>
+                    <input type="text" id="custom-dish-name" placeholder="Ex: Atassi spécial" class="w-full p-3 border rounded-xl text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Quantité *</label>
+                        <input type="number" id="custom-quantity" value="1" min="1" class="w-full p-3 border rounded-xl text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Niveau de piment</label>
+                        <select id="custom-spice" class="w-full p-3 border rounded-xl text-sm">
+                            <option value="Léger">Léger</option>
+                            <option value="Moyen">Moyen</option>
+                            <option value="Fort">Fort</option>
+                            <option value="Sans piment">Sans piment</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Ingrédients souhaités</label>
+                    <textarea id="custom-ingredients-wanted" placeholder="Ex: Bananes plantains..." class="w-full p-3 border rounded-xl text-sm h-20"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Ingrédients à éviter</label>
+                    <input type="text" id="custom-ingredients-avoid" placeholder="Ex: Oignons crus..." class="w-full p-3 border rounded-xl text-sm">
+                </div>
+                <button onclick="submitCustomRequest()" class="w-full bg-dounou-orange hover:bg-amber-700 text-white font-bold py-3 rounded-2xl shadow transition">Soumettre à l'administration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Compte -->
+    <div id="account-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-lg text-dounou-brown">Mon Compte & Infos Personnelles</h3>
+                <button onclick="closeAccountModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="account-details-container" class="space-y-4 text-sm">
+                <p class="text-gray-400 text-center py-6">Chargement...</p>
+            </div>
+            <button onclick="handleLogout()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition">Se déconnecter</button>
+        </div>
+    </div>
+
+    <!-- Modale Fidélité -->
+    <div id="loyalty-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg text-dounou-brown">Programme de Fidélité</h3>
+                <button onclick="closeLoyaltyModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4 text-center">
+                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100">
+                    <p class="text-xs text-dounou-orange font-semibold uppercase">Vos Points Cumulés</p>
+                    <h4 id="loyalty-points-display" class="text-3xl font-black text-dounou-orange">0 pts</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Support -->
+    <div id="support-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-lg text-dounou-brown">Aide & Contacts du Restaurant</h3>
+                <button onclick="closeSupportModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-orange-50 border border-orange-200 p-4 rounded-2xl space-y-2">
+                    <h4 class="font-bold text-sm text-dounou-brown"><i class="fa-solid fa-phone-volume mr-2"></i> Numéros de Service Officiels</h4>
+                    <div id="service-phones-container" class="text-xs text-dounou-lightBrown space-y-1 font-mono font-semibold">Chargement...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Auth -->
+    <div id="auth-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 id="auth-title" class="font-bold text-xl text-dounou-brown">Connexion Étudiant</h2>
+                <button onclick="closeAuthModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div id="register-fields" class="space-y-3 hidden">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="auth-firstname" placeholder="Prénom" class="w-full p-3 border rounded-xl text-sm">
+                        <input type="text" id="auth-lastname" placeholder="Nom" class="w-full p-3 border rounded-xl text-sm">
+                    </div>
+                    <input type="text" id="auth-student-id" placeholder="Numéro carte étudiante" class="w-full p-3 border rounded-xl text-sm">
+                    <input type="text" id="auth-institution" placeholder="Établissement (ex: UAC)" class="w-full p-3 border rounded-xl text-sm">
+                </div>
+                <input type="email" id="auth-email" placeholder="Email" class="w-full p-3 border rounded-xl text-sm">
+                <input type="password" id="auth-password" placeholder="Mot de passe" class="w-full p-3 border rounded-xl text-sm">
+                <input type="text" id="auth-phone" placeholder="Téléphone (+229...)" class="w-full p-3 border rounded-xl text-sm">
+                <button id="auth-submit-btn" onclick="handleAuthSubmit()" class="w-full bg-dounou-orange hover:bg-amber-700 text-white font-bold py-3 rounded-2xl shadow transition">Se connecter</button>
+                <div class="text-center pt-2">
+                    <button onclick="toggleAuthMode()" id="auth-toggle-link" class="text-xs text-dounou-orange font-semibold hover:underline">Pas encore de compte ? S'inscrire</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Application Client -->
+    <script>
+        const SUPABASE_URL = 'https://cvokvnkzekxbsdzffqwu.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN2b2t2bmt6ZWt4YnNkemZmcXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTUyNjQsImV4cCI6MjEwMzU5MTI2NH0.bc1qslvZhBwnLeZmTIk_QJTCaKpYtrzNhoxCdHqy8aM';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let menuItems = [];
+        let categories = [];
+        let cart = [];
+        let activeCategory = 'all';
+        let isRegisterMode = false;
+        let appliedPromo = null;
+        let selectedAddressId = null;
+        let currentDeliveryFee = 500;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkUserSession();
+            await loadRestaurantSettings();
+            await loadCategories();
+            await loadMenuItems();
+            await loadDeliveryZones();
+        });
+
+        async function checkUserSession() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                currentUser = session.user;
+                await supabaseClient.from('students').upsert({
+                    id: currentUser.id,
+                    student_id_number: currentUser.user_metadata?.student_id_number || 'STU-' + currentUser.id.slice(0, 8),
+                    institution: 'UAC'
+                }, { onConflict: 'id', ignoreDuplicates: true });
+
+                updateAuthUI();
+                loadMyOrders();
+                loadMyCustomRequests();
+                loadStudentLoyalty();
+            }
+        }
+
+        async function loadRestaurantSettings() {
+            const { data: rest } = await supabaseClient.from('restaurants').select('*').limit(1).single();
+            const statusEl = document.getElementById('service-status');
+            const brandEl = document.getElementById('brand-title');
+            const hoursEl = document.getElementById('service-hours-label');
+            const phonesContainer = document.getElementById('service-phones-container');
+
+            if (rest) {
+                brandEl.innerText = rest.name || 'Dounou Service';
+                if (rest.is_open) {
+                    statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Ouvert`;
+                } else {
+                    statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Fermé par l'admin`;
+                }
+
+                if (rest.opening_time && rest.closing_time) {
+                    hoursEl.innerText = `Horaires : ${rest.opening_time} - ${rest.closing_time}`;
+                }
+
+                phonesContainer.innerHTML = `<p>Principal : ${rest.phone || 'Non renseigné'}</p>${rest.email ? `<p>Email : ${rest.email}</p>` : ''}`;
+            }
+        }
+
+        async function loadCategories() {
+            const { data } = await supabaseClient.from('menu_categories').select('*').order('display_order');
+            if (data) {
+                categories = data;
+                const container = document.getElementById('categories-container');
+                let html = `<button onclick="selectCategory('all')" class="category-btn active px-5 py-2.5 rounded-2xl font-semibold text-sm bg-dounou-orange text-white shadow transition whitespace-nowrap">Tous les plats</button>`;
+                data.forEach(cat => {
+                    html += `<button onclick="selectCategory('${cat.id}')" class="category-btn px-5 py-2.5 rounded-2xl font-semibold text-sm bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition whitespace-nowrap">${cat.name}</button>`;
+                });
+                container.innerHTML = html;
+            }
+        }
+
+        async function loadMenuItems() {
+            const { data } = await supabaseClient.from('menu_items').select('*').eq('is_available', true);
+            if (data) {
+                menuItems = data;
+                renderMenuItems(menuItems);
+            }
+        }
+
+        function renderMenuItems(items) {
+            const grid = document.getElementById('menu-items-grid');
+            if (items.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400">Aucun plat disponible.</div>`;
+                return;
+            }
+            let html = '';
+            items.forEach(item => {
+                const img = item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+                html += `
+                    <div class="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                        <div>
+                            <div class="h-48 overflow-hidden relative">
+                                <img src="${img}" alt="${item.name}" class="w-full h-full object-cover">
+                                <span class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-xs font-bold px-3 py-1 rounded-full text-dounou-brown shadow">${item.price} FCFA</span>
+                            </div>
+                            <div class="p-5 space-y-2">
+                                <h4 class="font-bold text-lg text-dounou-brown">${item.name}</h4>
+                                <p class="text-xs text-gray-500 line-clamp-2">${item.description || 'Délicieux plat préparé.'}</p>
+                            </div>
+                        </div>
+                        <div class="p-5 pt-0">
+                            <button onclick="addToCart('${item.id}')" class="w-full bg-amber-50 hover:bg-dounou-orange hover:text-white text-dounou-orange font-bold py-2.5 rounded-2xl transition text-sm flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Ajouter au panier
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            grid.innerHTML = html;
+        }
+
+        function selectCategory(catId) {
+            activeCategory = catId;
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-dounou-orange', 'text-white', 'shadow');
+                btn.classList.add('bg-white', 'border', 'border-gray-200', 'text-gray-700');
+            });
+            event.target.classList.remove('bg-white', 'border', 'border-gray-200', 'text-gray-700');
+            event.target.classList.add('bg-dounou-orange', 'text-white', 'shadow');
+
+            if (catId === 'all') {
+                renderMenuItems(menuItems);
+            } else {
+                renderMenuItems(menuItems.filter(i => i.category_id === catId));
+            }
+        }
+
+        function filterMenu() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            renderMenuItems(menuItems.filter(i => i.name.toLowerCase().includes(query)));
+        }
+
+        function addToCart(itemId) {
+            const item = menuItems.find(i => i.id === itemId);
+            if (!item) return;
+            const existing = cart.find(c => c.id === itemId);
+            if (existing) { existing.quantity += 1; } else { cart.push({ ...item, quantity: 1 }); }
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const badge = document.getElementById('cart-badge');
+            const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0);
+            if (totalItems > 0) { badge.innerText = totalItems; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+
+            const listEl = document.getElementById('cart-items-list');
+            if (cart.length === 0) {
+                listEl.innerHTML = `<p class="text-center text-gray-400 py-12 text-sm">Votre panier est vide.</p>`;
+                document.getElementById('cart-subtotal').innerText = '0 FCFA';
+                document.getElementById('cart-total').innerText = '0 FCFA';
+                return;
+            }
+
+            let html = '';
+            let subtotal = 0;
+            cart.forEach(item => {
+                subtotal += item.price * item.quantity;
+                html += `
+                    <div class="py-3 flex justify-between items-center text-sm">
+                        <div>
+                            <h5 class="font-bold text-gray-800">${item.name}</h5>
+                            <p class="text-xs text-gray-500">${item.price} FCFA x ${item.quantity}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="changeQuantity('${item.id}', -1)" class="w-7 h-7 bg-gray-100 rounded-lg text-sm font-bold">-</button>
+                            <span class="font-semibold">${item.quantity}</span>
+                            <button onclick="changeQuantity('${item.id}', 1)" class="w-7 h-7 bg-gray-100 rounded-lg text-sm font-bold">+</button>
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+            let discount = 0;
+            if (appliedPromo) {
+                if (appliedPromo.discount_percentage) discount = subtotal * (appliedPromo.discount_percentage / 100);
+                if (appliedPromo.fixed_discount) discount = appliedPromo.fixed_discount;
+                document.getElementById('promo-discount-row').innerHTML = `<span>Réduction promo</span><span>-${discount} FCFA</span>`;
+            } else {
+                document.getElementById('promo-discount-row').innerHTML = '';
+            }
+
+            document.getElementById('cart-subtotal').innerText = subtotal + ' FCFA';
+            document.getElementById('cart-delivery-fee').innerText = currentDeliveryFee + ' FCFA';
+            document.getElementById('cart-total').innerText = Math.max(0, subtotal + currentDeliveryFee - discount) + ' FCFA';
+        }
+
+        function changeQuantity(itemId, delta) {
+            const item = cart.find(c => c.id === itemId);
+            if (!item) return;
+            item.quantity += delta;
+            if (item.quantity <= 0) cart = cart.filter(c => c.id !== itemId);
+            updateCartUI();
+        }
+
+        function togglePaymentFields() {
+            const option = document.getElementById('payment-timing-option').value;
+            const mmFields = document.getElementById('mobile-money-fields');
+            if (option === 'delivery') {
+                mmFields.classList.add('hidden');
+            } else {
+                mmFields.classList.remove('hidden');
+            }
+        }
+
+        async function applyPromoCode() {
+            const code = document.getElementById('promo-code-input').value.trim().toUpperCase();
+            if (!code) return;
+            const { data } = await supabaseClient.from('promotions').select('*').eq('code', code).eq('is_active', true).single();
+            if (data) {
+                appliedPromo = data;
+                alert('Code promo appliqué avec succès !');
+                updateCartUI();
+            } else {
+                alert('Code promo invalide ou expiré.');
+            }
+        }
+
+        async function loadDeliveryZones() {
+            const { data } = await supabaseClient.from('delivery_zones').select('*').eq('is_active', true);
+            const select = document.getElementById('delivery-zone-select');
+            if (!data || data.length === 0) { select.innerHTML = `<option value="">Aucune zone configurée</option>`; return; }
+            let html = '<option value="">-- Choisir une zone de livraison --</option>';
+            data.forEach(z => {
+                html += `<option value="${z.id}" data-fee="${z.base_fee}">${z.name} - ${z.base_fee} FCFA</option>`;
+            });
+            select.innerHTML = html;
+            
+            select.onchange = (e) => {
+                const selectedOpt = e.target.selectedOptions[0];
+                if (selectedOpt && selectedOpt.dataset.fee) {
+                    currentDeliveryFee = parseFloat(selectedOpt.dataset.fee);
+                    updateCartUI();
+                }
+            };
+        }
+
+        async function saveDeliveryAddress() {
+            if (!currentUser) { alert('Veuillez vous connecter.'); openAuthModal(); return; }
+            const rawZoneId = document.getElementById('delivery-zone-select').value;
+            const customTextAddress = document.getElementById('custom-address-text-input').value.trim();
+            if (!rawZoneId && !customTextAddress) { alert('Veuillez sélectionner une zone ou taper votre adresse de livraison.'); return; }
+            
+            const instructions = document.getElementById('address-instructions').value;
+
+            await supabaseClient.from('students').upsert({
+                id: currentUser.id,
+                student_id_number: currentUser.user_metadata?.student_id_number || 'STU-' + currentUser.id.slice(0, 8),
+                institution: 'UAC'
+            }, { onConflict: 'id', ignoreDuplicates: true });
+
+            const { data, error } = await supabaseClient.from('delivery_addresses').insert({
+                student_id: currentUser.id,
+                zone_id: rawZoneId || null,
+                address_label: customTextAddress || 'Zone sélectionnée',
+                instructions: instructions,
+                is_default: true
+            }).select().single();
+
+            if (error) { alert(error.message); } else {
+                selectedAddressId = data.id;
+                document.getElementById('current-location-label').innerText = customTextAddress || 'Zone enregistrée';
+                closeAddressModal();
+                alert('Adresse et zone enregistrées avec succès !');
+            }
+        }
+
+        async function checkoutOrder() {
+            if (!currentUser) { openAuthModal(); return; }
+            if (cart.length === 0) { alert('Panier vide.'); return; }
+            if (!selectedAddressId) { alert('Veuillez définir votre zone/adresse de livraison.'); openAddressModal(); return; }
+
+            const paymentTiming = document.getElementById('payment-timing-option').value;
+            const paymentMethod = paymentTiming === 'now' ? document.getElementById('payment-method').value : 'Paiement à la livraison';
+            const transactionId = paymentTiming === 'now' ? document.getElementById('transaction-id-input').value.trim() : 'COD-' + Date.now();
+
+            if (paymentTiming === 'now' && !transactionId) { alert('ID de transaction Mobile Money requis.'); return; }
+
+            const subtotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+            let discount = appliedPromo ? (appliedPromo.discount_percentage ? subtotal * (appliedPromo.discount_percentage / 100) : appliedPromo.fixed_discount) : 0;
+            const totalAmount = Math.max(0, subtotal + currentDeliveryFee - discount);
+
+            const { data: orderData, error } = await supabaseClient.from('orders').insert({
+                student_id: currentUser.id,
+                delivery_address_id: selectedAddressId,
+                promotion_id: appliedPromo ? appliedPromo.id : null,
+                subtotal: subtotal,
+                delivery_fee: currentDeliveryFee,
+                total_amount: totalAmount,
+                status: 'PENDING'
+            }).select().single();
+
+            if (error) { alert(error.message); return; }
+
+            const itemsPayload = cart.map(i => ({ order_id: orderData.id, menu_item_id: i.id, quantity: i.quantity, unit_price: i.price }));
+            await supabaseClient.from('order_items').insert(itemsPayload);
+            
+            const paymentStatus = paymentTiming === 'now' ? 'PENDING' : 'CONFIRMED';
+            await supabaseClient.from('payments').insert({
+                order_id: orderData.id,
+                amount: totalAmount,
+                payment_method: paymentMethod,
+                transaction_id: transactionId,
+                status: paymentStatus
+            });
+
+            alert(`Commande validée avec succès !\n\nID : #${orderData.id}\nTotal : ${totalAmount} FCFA`);
+            
+            cart = [];
+            updateCartUI();
+            closeCartModal();
+            loadMyOrders();
+        }
+
+        async function loadMyOrders() {
+            if (!currentUser) return;
+            const { data } = await supabaseClient.from('orders').select('*, payments(*)').eq('student_id', currentUser.id).order('created_at', { ascending: false });
+            const container = document.getElementById('my-orders-container');
+            if (!data || data.length === 0) { container.innerHTML = `<p class="text-sm text-gray-400">Aucune commande récente.</p>`; return; }
+
+            let html = '';
+            data.forEach(ord => {
+                const pay = ord.payments?.[0];
+                html += `
+                    <div class="border rounded-2xl p-4 space-y-2 text-sm bg-gray-50 font-mono">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-gray-800 text-xs">ID: #${ord.id}</span>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-orange-100 text-dounou-orange">${ord.status}</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-600 font-sans">
+                            <span>Montant : <strong>${ord.total_amount} FCFA</strong></span>
+                            <span>Paiement : <strong>${pay?.status || 'PENDING'}</strong></span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function submitCustomRequest() {
+            if (!currentUser) { openAuthModal(); return; }
+            const dishName = document.getElementById('custom-dish-name').value;
+            const quantity = parseInt(document.getElementById('custom-quantity').value);
+            const spice = document.getElementById('custom-spice').value;
+            const ingredients = document.getElementById('custom-ingredients-wanted').value;
+            const avoid = document.getElementById('custom-ingredients-avoid').value;
+
+            if (!dishName) { alert('Veuillez nommer le plat souhaité.'); return; }
+
+            await supabaseClient.from('students').upsert({
+                id: currentUser.id,
+                student_id_number: currentUser.user_metadata?.student_id_number || 'STU-' + currentUser.id.slice(0, 8),
+                institution: 'UAC'
+            }, { onConflict: 'id', ignoreDuplicates: true });
+
+            const { error } = await supabaseClient.from('custom_requests').insert({
+                student_id: currentUser.id,
+                dish_name: dishName,
+                quantity: quantity,
+                spice_level: spice,
+                ingredients_wanted: ingredients,
+                ingredients_to_avoid: avoid,
+                status: 'PENDING'
+            });
+
+            if (error) { alert(error.message); } else {
+                alert('Demande sur-mesure transmise à l’administration !');
+                closeCustomRequestModal();
+                loadMyCustomRequests();
+            }
+        }
+
+        async function loadMyCustomRequests() {
+            if (!currentUser) return;
+            const { data } = await supabaseClient.from('custom_requests').select('*').eq('student_id', currentUser.id).order('created_at', { ascending: false });
+            const container = document.getElementById('my-custom-requests-container');
+            if (!data || data.length === 0) { container.innerHTML = `<p class="text-sm text-gray-400">Aucune demande sur-mesure.</p>`; return; }
+
+            let html = '';
+            data.forEach(req => {
+                let statusBadge = 'bg-amber-100 text-amber-700';
+                if (req.status === 'ACCEPTED' || req.status === 'PREPARING' || req.status === 'READY') statusBadge = 'bg-emerald-100 text-emerald-700';
+                if (req.status === 'REFUSED') statusBadge = 'bg-red-100 text-red-700';
+
+                html += `
+                    <div class="border rounded-2xl p-4 space-y-2 text-sm bg-gray-50">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-gray-900">${req.dish_name} (x${req.quantity})</h4>
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${statusBadge}">${req.status}</span>
+                        </div>
+                        <p class="text-xs text-gray-600">Ingrédients : ${req.ingredients_wanted || 'Standard'}</p>
+                        ${req.status === 'ACCEPTED' || req.status === 'PREPARING' || req.status === 'READY' ? `
+                            <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-xs text-emerald-800 space-y-1">
+                                <p><strong>Statut :</strong> Accepté par la cuisine !</p>
+                                <p><strong>Prix proposé :</strong> ${req.proposed_price || 0} FCFA</p>
+                                <p><strong>Frais de livraison fixés :</strong> ${req.proposed_delivery_fee || 500} FCFA</p>
+                            </div>
+                        ` : ''}
+                        ${req.status === 'REFUSED' ? `<p class="text-xs text-red-600 font-semibold">Demande refusée par l'administration.</p>` : ''}
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        async function loadStudentLoyalty() {
+            if (!currentUser) return;
+            const { data } = await supabaseClient.from('students').select('loyalty_points').eq('id', currentUser.id).single();
+            if (data) {
+                document.getElementById('loyalty-points-display').innerText = (data.loyalty_points || 0) + ' pts';
+            }
+        }
+
+        async function loadAccountDetails() {
+            if (!currentUser) return;
+            const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+            const { data: student } = await supabaseClient.from('students').select('*').eq('id', currentUser.id).single();
+            const container = document.getElementById('account-details-container');
+            
+            container.innerHTML = `
+                <div class="space-y-3 bg-gray-50 p-4 rounded-2xl border">
+                    <p><strong>Nom & Prénom :</strong> ${profile?.first_name || ''} ${profile?.last_name || ''}</p>
+                    <p><strong>Email :</strong> ${currentUser.email}</p>
+                    <p><strong>Téléphone :</strong> ${profile?.phone || 'Non renseigné'}</p>
+                    <p><strong>Numéro Étudiant :</strong> ${student?.student_id_number || 'N/A'}</p>
+                    <p><strong>Établissement :</strong> ${student?.institution || 'N/A'}</p>
+                </div>
+            `;
+            document.getElementById('account-modal').classList.remove('hidden');
+        }
+
+        async function handleAuthSubmit() {
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const phone = document.getElementById('auth-phone').value;
+
+            if (isRegisterMode) {
+                const firstName = document.getElementById('auth-firstname').value;
+                const lastName = document.getElementById('auth-lastname').value;
+                const studentIdNumber = document.getElementById('auth-student-id').value;
+                const institution = document.getElementById('auth-institution').value;
+
+                const { data, error } = await supabaseClient.auth.signUp({ 
+                    email, 
+                    password,
+                    options: { data: { student_id_number: studentIdNumber } }
+                });
+                if (error) { alert(error.message); return; }
+                if (data.user) {
+                    await supabaseClient.from('profiles').insert({ id: data.user.id, role: 'STUDENT', first_name: firstName, last_name: lastName, phone: phone });
+                    await supabaseClient.from('students').insert({ id: data.user.id, student_id_number: studentIdNumber, institution: institution });
+                    alert('Inscription réussie ! Vous pouvez vous connecter.');
+                    toggleAuthMode();
+                }
+            } else {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) { alert(error.message); return; }
+                currentUser = data.user;
+                
+                await supabaseClient.from('students').upsert({
+                    id: currentUser.id,
+                    student_id_number: currentUser.user_metadata?.student_id_number || 'STU-' + currentUser.id.slice(0, 8),
+                    institution: 'UAC'
+                }, { onConflict: 'id', ignoreDuplicates: true });
+
+                alert('Connexion réussie !');
+                closeAuthModal();
+                updateAuthUI();
+                loadMyOrders();
+                loadMyCustomRequests();
+                loadStudentLoyalty();
+            }
+        }
+
+        function updateAuthUI() {
+            if (currentUser) {
+                document.getElementById('user-profile-menu').innerHTML = `
+                    <button onclick="loadAccountDetails()" class="text-xs font-bold text-gray-700 bg-gray-100 px-3 py-2 rounded-xl hover:bg-gray-200">Mon Compte</button>
+                    <button onclick="handleLogout()" class="text-xs text-red-600 font-bold ml-1 px-3 py-2 rounded-xl hover:bg-red-50">Déconnexion</button>
+                `;
+            }
+        }
+
+        async function handleLogout() { await supabaseClient.auth.signOut(); location.reload(); }
+
+        function openCartModal() { document.getElementById('cart-modal').classList.remove('hidden'); updateCartUI(); }
+        function closeCartModal() { document.getElementById('cart-modal').classList.add('hidden'); }
+        function openAddressModal() { document.getElementById('address-modal').classList.remove('hidden'); }
+        function closeAddressModal() { document.getElementById('address-modal').classList.add('hidden'); }
+        function openCustomRequestModal() { document.getElementById('custom-request-modal').classList.remove('hidden'); }
+        function closeCustomRequestModal() { document.getElementById('custom-request-modal').classList.add('hidden'); }
+        function openLoyaltyModal() { document.getElementById('loyalty-modal').classList.remove('hidden'); }
+        function closeLoyaltyModal() { document.getElementById('loyalty-modal').classList.add('hidden'); }
+        function openSupportModal() { document.getElementById('support-modal').classList.remove('hidden'); }
+        function closeSupportModal() { document.getElementById('support-modal').classList.add('hidden'); }
+        function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
+        function closeAccountModal() { document.getElementById('account-modal').classList.add('hidden'); }
+        
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            document.getElementById('auth-title').innerText = isRegisterMode ? 'Inscription Étudiant' : 'Connexion Étudiant';
+            document.getElementById('auth-submit-btn').innerText = isRegisterMode ? "S'inscrire" : 'Se connecter';
+            document.getElementById('auth-toggle-link').innerText = isRegisterMode ? 'Déjà un compte ? Se connecter' : "Pas encore de compte ? S'inscrire";
+            document.getElementById('register-fields').classList.toggle('hidden', !isRegisterMode);
+        }
+    </script>
+</body>
+</html>
